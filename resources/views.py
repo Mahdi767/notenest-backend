@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from resources.models import Resource
 from resources.seralizers import ResourceSerializer,ResourceCreateSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import viewsets
 
 class ResourceViewSet(viewsets.ModelViewSet):
@@ -12,13 +12,15 @@ class ResourceViewSet(viewsets.ModelViewSet):
         
     def get_queryset(self):
         return Resource.objects.filter(status='approved')
-    #return Resource.objects.all()
+        #return Resource.objects.all()
     
     
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
 
     def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
         return [IsAuthenticated()]
     
     def retrieve(self, request, *args, **kwargs):

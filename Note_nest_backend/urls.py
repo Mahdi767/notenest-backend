@@ -21,9 +21,11 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api-auth/', include('rest_framework.urls')),
     path('api/accounts/',include('accounts.urls')),
     path('api/academic/',include('academic.urls')),
     path('api/interactions/',include('interactions.urls')),
+    path('api/moderation/',include('moderation.urls')),
     path('api/notifications/',include('notifications.urls')),
     path('api/core/',include('core.urls')),
     path('api/resources/',include('resources.urls')),

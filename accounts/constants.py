@@ -1,5 +1,5 @@
-ROLE_CHOICES = (
-        ("student", "Student"),
-        ("moderator", "Moderator"),
-        ("admin", "Admin"),
-    )
+STATUS_CHOICES = (
+    ('pending', 'Pending'),
+    ('approved', 'Approved'),
+    ('rejected', 'Rejected'),
+)
