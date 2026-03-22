@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from . seralizers import RegisterSerializer,UserLoginSerializer
+from . serializers import RegisterSerializer,UserLoginSerializer
 from django.contrib.auth import login,logout
 from .models import User
 from rest_framework.views import APIView

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from resources.models import Resource
-from resources.seralizers import ResourceSerializer,ResourceCreateSerializer
+from resources.serializers import ResourceSerializer,ResourceCreateSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import viewsets
 
