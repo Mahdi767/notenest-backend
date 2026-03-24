@@ -18,8 +18,16 @@ from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
+
+
+def send_email_async(email_obj):
+    try:
+        email_obj.send()
+    except Exception as e:
+        logger.warning(f"Failed to send email: {str(e)}")
 
 
 # Create your views here.
@@ -46,10 +54,13 @@ class RegisterView(generics.CreateAPIView):
                 email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
                 email = EmailMultiAlternatives(email_subject, '', to=[user.email])
                 email.attach_alternative(email_body, "text/html")
-                email.send()
+                # Send email asynchronously to prevent blocking the request
+                thread = threading.Thread(target=send_email_async, args=(email,))
+                thread.daemon = True
+                thread.start()
             except Exception as e:
-                # Log email error but don't fail the registration
-                logger.warning(f"Email sending failed for user {user.email}: {str(e)}")
+                # Log any errors in email preparation, but don't fail the registration
+                logger.warning(f"Error preparing email for user {user.email}: {str(e)}")
             
             return Response(
                 {"message": "User registered successfully, please check your email to verify your account."},
