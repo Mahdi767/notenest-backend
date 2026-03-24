@@ -28,11 +28,17 @@ logger = logging.getLogger(__name__)
 def send_email_async(subject, body, recipient):
     """Send email in a background thread with proper Django context"""
     try:
+        # Log to file for debugging
+        import sys
+        print(f"[EMAIL THREAD] Starting email send for {recipient}", file=sys.stderr)
+        
         # Ensure we have a fresh database connection in this thread
         db.close_old_connections()
         
         # Create a fresh connection
         connection = get_connection()
+        print(f"[EMAIL THREAD] Connection created", file=sys.stderr)
+        
         email = EmailMultiAlternatives(
             subject=subject,
             body='',
@@ -43,14 +49,20 @@ def send_email_async(subject, body, recipient):
         email.attach_alternative(body, "text/html")
         
         # Send the email
+        print(f"[EMAIL THREAD] Calling email.send()", file=sys.stderr)
         result = email.send(fail_silently=False)
+        print(f"[EMAIL THREAD] ✓ Email sent successfully (result: {result})", file=sys.stderr)
         logger.info(f"Email sent successfully to {recipient} (result: {result})")
         
     except Exception as e:
+        print(f"[EMAIL THREAD] ✗ ERROR: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         logger.error(f"Failed to send email to {recipient}: {str(e)}", exc_info=True)
     finally:
         # Clean up database connection
         db.close_old_connections()
+        print(f"[EMAIL THREAD] Thread completed", file=sys.stderr)
 
 
 # Create your views here.
