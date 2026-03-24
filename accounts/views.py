@@ -12,7 +12,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode,urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
@@ -24,14 +24,22 @@ logger = logging.getLogger(__name__)
 
 
 def send_email_async(subject, body, recipient):
-
+    """Send email in a background thread with a fresh connection"""
     try:
-        email = EmailMultiAlternatives(subject, '', to=[recipient])
+        # Create a fresh connection to ensure settings are properly loaded
+        connection = get_connection()
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body='',
+            from_email=settings.EMAIL_HOST_USER,
+            to=[recipient],
+            connection=connection
+        )
         email.attach_alternative(body, "text/html")
         email.send(fail_silently=False)
         logger.info(f"Email sent successfully to {recipient}")
     except Exception as e:
-        logger.warning(f"Failed to send email to {recipient}: {str(e)}")
+        logger.error(f"Failed to send email to {recipient}: {str(e)}", exc_info=True)
 
 
 # Create your views here.
