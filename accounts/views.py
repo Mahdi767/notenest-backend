@@ -23,11 +23,15 @@ import threading
 logger = logging.getLogger(__name__)
 
 
-def send_email_async(email_obj):
+def send_email_async(subject, body, recipient):
+
     try:
-        email_obj.send()
+        email = EmailMultiAlternatives(subject, '', to=[recipient])
+        email.attach_alternative(body, "text/html")
+        email.send(fail_silently=False)
+        logger.info(f"Email sent successfully to {recipient}")
     except Exception as e:
-        logger.warning(f"Failed to send email: {str(e)}")
+        logger.warning(f"Failed to send email to {recipient}: {str(e)}")
 
 
 # Create your views here.
@@ -52,10 +56,8 @@ class RegisterView(generics.CreateAPIView):
                 confirm_link = f"{protocol}://{domain}/api/accounts/activate/{uid}/{token}/"
                 email_subject = "Confirm Your Email for NoteNest"
                 email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
-                email = EmailMultiAlternatives(email_subject, '', to=[user.email])
-                email.attach_alternative(email_body, "text/html")
                 # Send email asynchronously to prevent blocking the request
-                thread = threading.Thread(target=send_email_async, args=(email,))
+                thread = threading.Thread(target=send_email_async, args=(email_subject, email_body, user.email))
                 thread.daemon = True
                 thread.start()
             except Exception as e:
