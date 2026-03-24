@@ -38,7 +38,11 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'notenest-backend-hd5r.onrender.com',
+    'localhost',
+    '127.0.0.1',
+]
 
 # Default auto field for primary keys
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
