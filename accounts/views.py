@@ -17,6 +17,9 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -34,12 +37,19 @@ class RegisterView(generics.CreateAPIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
             # Send verification email
-            confirm_link = f"http://127.0.0.1:8000/api/accounts/activate/{uid}/{token}/"
-            email_subject = "Confirm Your Email for NoteNest"
-            email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
-            email = EmailMultiAlternatives(email_subject, '', to=[user.email])
-            email.attach_alternative(email_body, "text/html")
-            email.send()
+            try:
+                # Build the confirmation link using the request's host
+                protocol = 'https' if request.is_secure() else 'http'
+                domain = request.get_host()
+                confirm_link = f"{protocol}://{domain}/api/accounts/activate/{uid}/{token}/"
+                email_subject = "Confirm Your Email for NoteNest"
+                email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
+                email = EmailMultiAlternatives(email_subject, '', to=[user.email])
+                email.attach_alternative(email_body, "text/html")
+                email.send()
+            except Exception as e:
+                # Log email error but don't fail the registration
+                logger.warning(f"Email sending failed for user {user.email}: {str(e)}")
             
             return Response(
                 {"message": "User registered successfully, please check your email to verify your account."},
