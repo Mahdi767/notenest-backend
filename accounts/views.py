@@ -19,14 +19,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 import logging
 import threading
+import time
+from django import db
 
 logger = logging.getLogger(__name__)
 
 
 def send_email_async(subject, body, recipient):
-    """Send email in a background thread with a fresh connection"""
+    """Send email in a background thread with proper Django context"""
     try:
-        # Create a fresh connection to ensure settings are properly loaded
+        # Ensure we have a fresh database connection in this thread
+        db.close_old_connections()
+        
+        # Create a fresh connection
         connection = get_connection()
         email = EmailMultiAlternatives(
             subject=subject,
@@ -36,10 +41,16 @@ def send_email_async(subject, body, recipient):
             connection=connection
         )
         email.attach_alternative(body, "text/html")
-        email.send(fail_silently=False)
-        logger.info(f"Email sent successfully to {recipient}")
+        
+        # Send the email
+        result = email.send(fail_silently=False)
+        logger.info(f"Email sent successfully to {recipient} (result: {result})")
+        
     except Exception as e:
         logger.error(f"Failed to send email to {recipient}: {str(e)}", exc_info=True)
+    finally:
+        # Clean up database connection
+        db.close_old_connections()
 
 
 # Create your views here.
@@ -66,7 +77,7 @@ class RegisterView(generics.CreateAPIView):
                 email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
                 # Send email asynchronously to prevent blocking the request
                 thread = threading.Thread(target=send_email_async, args=(email_subject, email_body, user.email))
-                thread.daemon = True
+                thread.daemon = False  # Don't kill thread on exit
                 thread.start()
             except Exception as e:
                 # Log any errors in email preparation, but don't fail the registration
