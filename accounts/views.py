@@ -12,57 +12,11 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode,urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-import logging
-import threading
-import time
-from django import db
-
-logger = logging.getLogger(__name__)
-
-
-def send_email_async(subject, body, recipient):
-    """Send email in a background thread with proper Django context"""
-    try:
-        # Log to file for debugging
-        import sys
-        print(f"[EMAIL THREAD] Starting email send for {recipient}", file=sys.stderr)
-        
-        # Ensure we have a fresh database connection in this thread
-        db.close_old_connections()
-        
-        # Create a fresh connection
-        connection = get_connection()
-        print(f"[EMAIL THREAD] Connection created", file=sys.stderr)
-        
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body='',
-            from_email=settings.EMAIL_HOST_USER,
-            to=[recipient],
-            connection=connection
-        )
-        email.attach_alternative(body, "text/html")
-        
-        # Send the email
-        print(f"[EMAIL THREAD] Calling email.send()", file=sys.stderr)
-        result = email.send(fail_silently=False)
-        print(f"[EMAIL THREAD] ✓ Email sent successfully (result: {result})", file=sys.stderr)
-        logger.info(f"Email sent successfully to {recipient} (result: {result})")
-        
-    except Exception as e:
-        print(f"[EMAIL THREAD] ✗ ERROR: {str(e)}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        logger.error(f"Failed to send email to {recipient}: {str(e)}", exc_info=True)
-    finally:
-        # Clean up database connection
-        db.close_old_connections()
-        print(f"[EMAIL THREAD] Thread completed", file=sys.stderr)
 
 
 # Create your views here.
@@ -82,18 +36,18 @@ class RegisterView(generics.CreateAPIView):
             # Send verification email
             try:
                 # Build the confirmation link using the request's host
-                protocol = 'https' if request.is_secure() else 'http'
+                scheme = request.scheme # usually http or https
+                
                 domain = request.get_host()
-                confirm_link = f"{protocol}://{domain}/api/accounts/activate/{uid}/{token}/"
+                confirm_link = f"{scheme}://{domain}/api/accounts/activate/{uid}/{token}/"
                 email_subject = "Confirm Your Email for NoteNest"
                 email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
-                # Send email asynchronously to prevent blocking the request
-                thread = threading.Thread(target=send_email_async, args=(email_subject, email_body, user.email))
-                thread.daemon = False  # Don't kill thread on exit
-                thread.start()
+                email = EmailMultiAlternatives(email_subject, '', to=[user.email])
+                email.attach_alternative(email_body, "text/html")
+                email.send()
             except Exception as e:
-                # Log any errors in email preparation, but don't fail the registration
-                logger.warning(f"Error preparing email for user {user.email}: {str(e)}")
+                # Log email error but don't fail the registration
+                print(f"Email sending failed: {str(e)}")
             
             return Response(
                 {"message": "User registered successfully, please check your email to verify your account."},

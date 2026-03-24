@@ -6,6 +6,7 @@ ALLOWED_DOMAIN2 = "metrouni.edu.bd"
 
 
 
+
 class RegisterSerializer(serializers.ModelSerializer):
     username = serializers.CharField(max_length=150, required=True, style={'input_type': 'text'})
     first_name = serializers.CharField(max_length=150, required=True, style={'input_type': 'text'})
