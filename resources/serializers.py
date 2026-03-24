@@ -49,10 +49,23 @@ class ResourceSerializer(serializers.ModelSerializer): #for readonly
         fields = '__all__'
 
 
-class ResourceCreateSerializer(serializers.ModelSerializer):#for post methpd
+class ResourceCreateSerializer(serializers.ModelSerializer):#for post method
+    file = serializers.FileField(required=True)
+    tags = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Tag.objects.all(),
+        required=False
+    )
+    
     class Meta:
         model = Resource
         fields = ['title', 'description', 'file', 'resource_type', 'tags', 'department', 'course', 'semester']
+    
+    def create(self, validated_data):
+        tags = validated_data.pop('tags', [])
+        resource = Resource.objects.create(**validated_data)
+        resource.tags.set(tags)
+        return resource
 
 
 
