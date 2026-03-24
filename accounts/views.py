@@ -17,7 +17,19 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+import threading
 
+
+# Helper function to send email in background
+def send_verification_email(user_email, confirm_link):
+    try:
+        email_subject = "Confirm Your Email for NoteNest"
+        email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
+        email = EmailMultiAlternatives(email_subject, '', to=[user_email])
+        email.attach_alternative(email_body, "text/html")
+        email.send(fail_silently=False)
+    except Exception as e:
+        print(f"Background email sending failed: {str(e)}")
 
 # Create your views here.
 class RegisterView(generics.CreateAPIView):
@@ -33,21 +45,21 @@ class RegisterView(generics.CreateAPIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-            # Send verification email
+            # Send verification email in background thread (non-blocking)
             try:
-                # Build the confirmation link using the request's host
-                scheme = request.scheme # usually http or https
-                
+                scheme = request.scheme
                 domain = request.get_host()
                 confirm_link = f"{scheme}://{domain}/api/accounts/activate/{uid}/{token}/"
-                email_subject = "Confirm Your Email for NoteNest"
-                email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
-                email = EmailMultiAlternatives(email_subject, '', to=[user.email])
-                email.attach_alternative(email_body, "text/html")
-                email.send()
+                
+                # Start email sending in background thread
+                email_thread = threading.Thread(
+                    target=send_verification_email,
+                    args=(user.email, confirm_link)
+                )
+                email_thread.daemon = True
+                email_thread.start()
             except Exception as e:
-                # Log email error but don't fail the registration
-                print(f"Email sending failed: {str(e)}")
+                print(f"Failed to start email thread: {str(e)}")
             
             return Response(
                 {"message": "User registered successfully, please check your email to verify your account."},
