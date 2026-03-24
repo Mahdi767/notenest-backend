@@ -1,7 +1,12 @@
+
+
+
+
 from django.db import models
 from . constant import RESOURCE_TYPE_CHOICES,STATUS_CHOICES
 from accounts.models import User
 from academic.models import Department,Semester,Course
+from cloudinary.models import CloudinaryField
  
 from .validators import validate_file_size,validate_file_type
 # Create your models here.
@@ -14,7 +19,7 @@ class Tag(models.Model):
 class Resource(models.Model):
     title =  models.CharField(max_length=255)
     description = models.TextField()
-    file  =  models.FileField(upload_to='resource/',validators=[validate_file_size,validate_file_type])
+    file  =  CloudinaryField('file',folder='resources/',null=True,blank=True)
     tags = models.ManyToManyField(Tag,blank=True)
     uploaded_by =  models.ForeignKey(User,on_delete=models.SET_NULL,null=True)
     department =  models.ForeignKey(Department,on_delete=models.SET_NULL,null=True)
@@ -29,3 +34,11 @@ class Resource(models.Model):
 
     def __str__(self):
         return self.title
+
+class ResourceView(models.Model):
+    resource = models.ForeignKey(Resource,on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    ip_address = models.GenericIPAddressField(null=True)
+    created_at =  models.DateTimeField(auto_now_add=True)
+    class Meta:
+        unique_together = ('resource', 'user')

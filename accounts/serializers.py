@@ -26,11 +26,9 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_email(self,value):
         if not value.endswith((f"@{ALLOWED_DOMAIN1}", f"@{ALLOWED_DOMAIN2}")):
             raise serializers.ValidationError("Only university email addresses are allowed")
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("An account with this email address already exists. Please use a different email to continue")
         return value
-    if User.objects.filter(email=email).exists():
-        raise serializers.ValidationError({
-            "An account with this email address already exists. Please use a different email to continue"
-        })
 
     def create(self, validated_data):
         validated_data.pop('confirm_password')

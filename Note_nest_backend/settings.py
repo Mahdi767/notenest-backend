@@ -11,9 +11,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import environ
+
 import os
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +40,8 @@ DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
+# Default auto field for primary keys
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Application definition
 
@@ -47,7 +51,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'django_filters',
     'accounts',
     'academic',
     'core',
@@ -58,7 +65,24 @@ INSTALLED_APPS = [
     "rest_framework",
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # React local dev (Vite)
+    "http://localhost:3000",  # React local dev (CRA)
+    "https://notenest.vercel.app",  # React production
+]
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': env('CLOUDINARY_API_KEY'),
+    'API_SECRET': env('CLOUDINARY_API_SECRET'),
+    'RESOURCE_TYPE': 'raw', 
+}
+
+
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -73,17 +97,18 @@ SIMPLE_JWT = {
 # Source - https://stackoverflow.com/a/75451407
 # Posted by Sheraz Asghar
 # Retrieved 2026-03-12, License - CC BY-SA 4.0
-
 REST_FRAMEWORK = {
-
-'DEFAULT_AUTHENTICATION_CLASSES': [
-    # 'rest_framework.authentication.SessionAuthentication',
-    'rest_framework.authentication.BasicAuthentication',
-     'rest_framework.authentication.SessionAuthentication',
-]
-,
-    
-} 
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
@@ -92,9 +117,21 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 
+# Cloudinary Configuration
+import cloudinary
+
+cloudinary.config(
+    cloud_name=env('CLOUDINARY_CLOUD_NAME'),
+    api_key=env('CLOUDINARY_API_KEY'),
+    api_secret=env('CLOUDINARY_API_SECRET')
+)
+
+# Use Cloudinary storage for media files
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.RawMediaCloudinaryStorage'
 
 AUTH_USER_MODEL = "accounts.User"
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -128,10 +165,9 @@ WSGI_APPLICATION = 'Note_nest_backend.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'
+    )
 }
 
 
@@ -169,4 +205,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
