@@ -19,22 +19,43 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 import threading
 import logging
+import requests
+import json
 
 logger = logging.getLogger(__name__)
 
-
-# Helper function to send email in background
-def send_verification_email(user_email, confirm_link):
+# Helper function to send email via Brevo API
+def send_email_via_brevo(to_email, subject, html_body):
+    """Send email using Brevo REST API (non-blocking)"""
     try:
-        logger.info(f"Starting email send to: {user_email}")
-        email_subject = "Confirm Your Email for NoteNest"
-        email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
-        email = EmailMultiAlternatives(email_subject, '', to=[user_email])
-        email.attach_alternative(email_body, "text/html")
-        result = email.send(fail_silently=False)
-        logger.info(f"Email sent successfully to {user_email}. Result: {result}")
+        # Extract email from "Name <email@domain.com>" format
+        from_email = settings.DEFAULT_FROM_EMAIL
+        if '<' in from_email:
+            from_email = from_email.split('<')[1].rstrip('>')
+        
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "api-key": settings.BREVO_API_KEY,
+            "content-type": "application/json"
+        }
+        payload = {
+            "to": [{"email": to_email}],
+            "sender": {"name": "NoteNest", "email": from_email},
+            "subject": subject,
+            "htmlContent": html_body
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 201:
+            logger.info(f"Email sent successfully to {to_email} via Brevo API")
+            return True
+        else:
+            logger.error(f"Brevo API error for {to_email}: {response.status_code} - {response.text}")
+            return False
     except Exception as e:
-        logger.error(f"Background email sending failed to {user_email}: {type(e).__name__}: {str(e)}", exc_info=True)
+        logger.error(f"Failed to send email to {to_email} via Brevo: {type(e).__name__}: {str(e)}", exc_info=True)
+        return False
 
 # Create your views here.
 class RegisterView(generics.CreateAPIView):
@@ -50,17 +71,18 @@ class RegisterView(generics.CreateAPIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-            # Send verification email in background thread (non-blocking)
+            # Send verification email via Brevo API in background thread
             try:
                 scheme = request.scheme
                 domain = request.get_host()
                 confirm_link = f"{scheme}://{domain}/api/accounts/activate/{uid}/{token}/"
+                email_subject = "Confirm Your Email for NoteNest"
+                email_body = render_to_string('confirm_email.html', {'confirm_link': confirm_link})
                 
-                logger.info(f"Creating email thread for user: {user.email}")
-                # Start email sending in background thread
+                # Start email sending in background thread via Brevo API
                 email_thread = threading.Thread(
-                    target=send_verification_email,
-                    args=(user.email, confirm_link)
+                    target=send_email_via_brevo,
+                    args=(user.email, email_subject, email_body)
                 )
                 email_thread.daemon = True
                 email_thread.start()
@@ -128,37 +150,5 @@ class LogoutView(APIView):
         except Exception as e:
             return Response(
                 {"error": "Invalid token"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-class TestEmailView(APIView):
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        """Test endpoint to verify email sending works"""
-        email = request.data.get('email')
-        if not email:
-            return Response(
-                {"error": "Email is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            logger.info(f"Testing email send to: {email}")
-            test_email = EmailMultiAlternatives(
-                subject="Test Email from NoteNest",
-                body="This is a test email",
-                to=[email]
-            )
-            test_email.send(fail_silently=False)
-            logger.info(f"Test email sent successfully to {email}")
-            return Response(
-                {"message": f"Test email sent to {email}"},
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            logger.error(f"Test email failed: {type(e).__name__}: {str(e)}", exc_info=True)
-            return Response(
-                {"error": f"Failed to send test email: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )

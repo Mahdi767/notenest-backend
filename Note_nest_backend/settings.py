@@ -128,6 +128,9 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='NoteNest <noreply@notenestmu.me>')
 
+# Brevo API Configuration (for sending emails via API instead of SMTP)
+BREVO_API_KEY = env('BREVO_API_KEY')
+
 # Cloudinary Configuration
 import cloudinary
 
