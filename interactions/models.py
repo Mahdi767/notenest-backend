@@ -5,7 +5,7 @@ from resources.models import Resource
 # Create your models here.
 class Like(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
-    resource =models.ForeignKey(Resource,on_delete=models.CASCADE)
+    resource =models.ForeignKey(Resource,on_delete=models.CASCADE,related_name="likes")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -16,7 +16,7 @@ class Like(models.Model):
 
 class Bookmark(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
-    resource =models.ForeignKey(Resource,on_delete=models.CASCADE)
+    resource =models.ForeignKey(Resource,on_delete=models.CASCADE,related_name="bookmarks")
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -29,9 +29,9 @@ class Bookmark(models.Model):
 
 class Comment(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
-    resource =models.ForeignKey(Resource,on_delete=models.CASCADE)
+    resource =models.ForeignKey(Resource,on_delete=models.CASCADE,related_name="comments")
     content = models.TextField()
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, related_name="replies", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
   

@@ -16,7 +16,8 @@ class ModerationAction(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        if self.resource and self.resource.status != self.action:
+        # Update the associated resource's status to match the action taken
+        if self.resource:
             self.resource.status = self.action
             self.resource.save(update_fields=['status', 'updated_at'])
 

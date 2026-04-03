@@ -22,7 +22,8 @@ class Course(models.Model):
 class Semester(models.Model):
     name = models.CharField(max_length=50)
     year = models.IntegerField()
+    is_active = models.BooleanField(default=False)  # Track if this is current semester
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} {self.year}"

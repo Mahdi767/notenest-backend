@@ -1,7 +1,4 @@
 
-
-
-
 from django.db import models
 from . constant import RESOURCE_TYPE_CHOICES,STATUS_CHOICES
 from accounts.models import User
@@ -30,10 +27,25 @@ class Resource(models.Model):
     view_count = models.IntegerField(default=0)
     download_count = models.IntegerField(default=0)
     created_at =  models.DateTimeField(auto_now_add=True)
-    updated_at =  models.DateTimeField(auto_now=True) # when user update his file, it will move again pending stage
+    updated_at =  models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.title
+    
+    def save(self, *args, **kwargs):
+      #Reset status to pending if an approved resource is edited by non-staff user
+        # Only apply if this is an update (not a new resource)
+        if self.pk:
+            try:
+                original = Resource.objects.get(pk=self.pk)
+                # If resource was approved and is now being updated by non-staff, reset to pending
+                if original.status == 'approved' and self.status != 'pending':
+                    # Check if the uploader is not staff
+                    if self.uploaded_by and not self.uploaded_by.is_staff:
+                        self.status = 'pending'
+            except Resource.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
 
 class ResourceView(models.Model):
     resource = models.ForeignKey(Resource,on_delete=models.CASCADE)

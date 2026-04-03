@@ -16,3 +16,5 @@ env/
 
 # Others
 .DS_Store
+
+FRONTEND_API_GUIDE.md
