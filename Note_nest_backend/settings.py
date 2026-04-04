@@ -124,13 +124,13 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour',
-        'interactions': '100/hour',
-        'anon_interactions': '50/hour',
-        'resource_upload': '10/hour',
-        'resource_download': '500/hour',
-        'notifications': '200/hour',
+        'anon': '10000/hour',         # Casual users browsing (no throttle for list/search)
+        'user': '20000/hour',         # Authenticated users (filtering, searching, pagination)
+        'interactions': '1000/hour',  # Likes, comments, bookmarks
+        'anon_interactions': '500/hour',  # Anonymous interaction attempts
+        'resource_upload': '20/hour',     # Resource uploads (strict - prevents abuse)
+        'resource_download': '1000/hour', # Resource downloads
+        'notifications': '1000/hour',     # Notification polling
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }

@@ -30,7 +30,21 @@ class ResourceViewSet(viewsets.ModelViewSet):
     search_fields = ['title']  
     ordering_fields = ['created_at', 'view_count', 'download_count']  
     pagination_class = PageNumberPagination
-    throttle_classes = [ResourceUploadRateThrottle, ResourceDownloadRateThrottle]
+
+    def get_throttles(self):
+        """
+        Apply throttles only to specific actions:
+        - Create/Upload: Strict rate limit (ResourceUploadRateThrottle)
+        - Download: Moderate rate limit (ResourceDownloadRateThrottle)
+        - List/Retrieve/Search/Filter: No throttle (unlimited browsing)
+        """
+        if self.action == 'create':
+            return [ResourceUploadRateThrottle()]
+        elif self.action == 'download':
+            return [ResourceDownloadRateThrottle()]
+        else:
+            # List, retrieve, update, destroy use default throttles or none
+            return []
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
