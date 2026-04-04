@@ -33,15 +33,24 @@ class Resource(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
-      #Reset status to pending if an approved resource is edited by non-staff user
+        # Reset status to pending if an approved resource is edited by non-staff user
         # Only apply if this is an update (not a new resource)
         if self.pk:
             try:
                 original = Resource.objects.get(pk=self.pk)
-                # If resource was approved and is now being updated by non-staff, reset to pending
-                if original.status == 'approved' and self.status != 'pending':
-                    # Check if the uploader is not staff
-                    if self.uploaded_by and not self.uploaded_by.is_staff:
+                # Only reset status if content actually changed, not auto-increment fields
+                if original.status == 'approved' and self.uploaded_by and not self.uploaded_by.is_staff:
+                    # Check if any content fields were actually modified
+                    content_changed = (
+                        original.title != self.title or
+                        original.description != self.description or
+                        original.file != self.file or
+                        original.resource_type != self.resource_type or
+                        original.department_id != self.department_id or
+                        original.course_id != self.course_id or
+                        original.semester_id != self.semester_id
+                    )
+                    if content_changed:
                         self.status = 'pending'
             except Resource.DoesNotExist:
                 pass
