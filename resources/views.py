@@ -56,10 +56,16 @@ class ResourceViewSet(viewsets.ModelViewSet):
         # Admin/staff can see all resources
         if user.is_staff:
             return Resource.objects.all()
-        # Users can edit/delete their own pending resources
+        
+        # For authenticated users on retrieve/list - show approved resources
+        if self.action in ['list', 'retrieve']:
+            return Resource.objects.filter(status='approved')
+        
+        # Users can edit/delete/partial update only their own resources (regardless of status)
         if self.action in ['update', 'partial_update', 'destroy']:
             return Resource.objects.filter(uploaded_by=user)
-        # Everyone else sees only approved resources
+        
+        # Default: Show only approved resources
         return Resource.objects.filter(status='approved')
     
     
