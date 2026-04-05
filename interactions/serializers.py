@@ -1,10 +1,18 @@
 from rest_framework import serializers
 from .models import Like, Bookmark, Comment
 from resources.models import Resource
+from accounts.models import User
 from django.utils.html import escape
 
+# User serializer for nested user data in comments/likes
+class UserBasicSerializer(serializers.ModelSerializer):
+    """Returns user's first_name and last_name"""
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name']
+
 class LikeSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)  # ✅ Changed to show full user info
     resource = serializers.PrimaryKeyRelatedField(
         queryset=Resource.objects.filter(status='approved')
     )
@@ -13,7 +21,7 @@ class LikeSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class BookmarkSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)  # ✅ Changed to show full user info
     resource = serializers.PrimaryKeyRelatedField(
         queryset=Resource.objects.filter(status='approved')
     )
@@ -25,7 +33,7 @@ class CommentSerializer(serializers.ModelSerializer):
     resource = serializers.PrimaryKeyRelatedField(
         queryset=Resource.objects.filter(status='approved')
     )
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)  # ✅ Changed to show full user info (first_name, last_name)
     
     class Meta:
         model = Comment

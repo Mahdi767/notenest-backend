@@ -1037,6 +1037,697 @@ const handleCourseChange = async (courseId) => {
 
 ---
 
+# 👍 INTERACTIONS: LIKE & COMMENT API GUIDE
+
+## 1️⃣ LIKES ENDPOINT
+
+### Create/Toggle Like
+
+**Endpoint:** `POST /api/interactions/like/`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+```json
+{
+  "resource": 14
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "id": 42,
+  "user": {
+    "id": 5,
+    "first_name": "Mehedi",
+    "last_name": "Hasan"
+  },
+  "resource": 14,
+  "created_at": "2026-04-06T10:30:45.123456Z"
+}
+```
+
+**Frontend Implementation - React:**
+```javascript
+const handleLike = async (resourceId, isLiked) => {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    if (isLiked) {
+      // Unlike: DELETE the like
+      // You need the like ID first - fetch it or track it
+      const response = await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/like/${likeId}/`,
+        {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      setIsLiked(false);
+      setLikesCount(likesCount - 1);
+    } else {
+      // Like: POST new like
+      const response = await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/like/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ resource: resourceId })
+        }
+      );
+      
+      if (response.ok) {
+        setIsLiked(true);
+        setLikesCount(likesCount + 1);
+      }
+    }
+  } catch (error) {
+    console.error('Like error:', error);
+  }
+};
+
+// In your JSX
+<button 
+  onClick={() => handleLike(resourceId, isLiked)}
+  className={isLiked ? 'btn-liked' : 'btn-like'}
+>
+  👍 {likesCount} Likes
+</button>
+```
+
+---
+
+## 💬 COMMENTS ENDPOINT
+
+### ⭐ IMPORTANT: Commenter Name Structure
+
+Every comment returns the commenter's **first_name** and **last_name** in the user object:
+
+```json
+"user": {
+  "id": 48,
+  "first_name": "Test",
+  "last_name": "Mehedi"
+}
+```
+
+**Always display as:** `first_name + " " + last_name` = `"Test Mehedi"`
+
+---
+
+### Get All Comments
+
+**Endpoint:** `GET /api/interactions/comment/`
+
+**Authentication:** Optional
+
+**Query Parameters:**
+```
+?page=1&limit=10
+```
+
+**Response Structure - Comments with Replies:**
+```json
+{
+  "count": 4,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 28,
+      "user": {
+        "id": 48,
+        "first_name": "Test",
+        "last_name": "Mehedi"
+      },
+      "resource": 14,
+      "parent": null,
+      "content": "This is a great resource!",
+      "created_at": "2026-03-31T15:20:00Z",
+      "updated_at": "2026-03-31T15:20:00Z"
+    },
+    {
+      "id": 29,
+      "user": {
+        "id": 5,
+        "first_name": "John",
+        "last_name": "Doe"
+      },
+      "resource": 14,
+      "parent": 28,
+      "content": "I agree! Very helpful.",
+      "created_at": "2026-03-31T15:25:00Z",
+      "updated_at": "2026-03-31T15:25:00Z"
+    },
+    {
+      "id": 30,
+      "user": {
+        "id": 7,
+        "first_name": "Sarah",
+        "last_name": "Smith"
+      },
+      "resource": 14,
+      "parent": 28,
+      "content": "Thanks for the suggestion! I'll use this approach in my project.",
+      "created_at": "2026-03-31T15:30:00Z",
+      "updated_at": "2026-03-31T15:30:00Z"
+    },
+    {
+      "id": 31,
+      "user": {
+        "id": 12,
+        "first_name": "Ahmed",
+        "last_name": "Hassan"
+      },
+      "resource": 14,
+      "parent": null,
+      "content": "Can someone explain the main concept here?",
+      "created_at": "2026-03-31T15:35:00Z",
+      "updated_at": "2026-03-31T15:35:00Z"
+    }
+  ]
+}
+```
+
+**Understanding the Structure:**
+- `id`: Unique comment ID
+- `user.id`: The user who wrote the comment
+- `user.first_name` + `user.last_name`: **Display commenter name** ⭐
+- `resource`: Which resource this comment is on
+- `parent`: If null, it's a top-level comment. If has a value, it's a reply to that comment ID
+- `content`: The comment text
+- `created_at`: When the comment was posted
+- `updated_at`: When it was last edited
+
+---
+
+### Create Comment
+
+**Endpoint:** `POST /api/interactions/comment/`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+```json
+{
+  "resource": 14,
+  "content": "This is my comment",
+  "parent": null
+}
+```
+
+**For Creating a Reply (nested comment):**
+```json
+{
+  "resource": 14,
+  "content": "I agree! This is a reply to comment #28",
+  "parent": 28
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "id": 30,
+  "user": {
+    "id": 5,
+    "first_name": "Mehedi",
+    "last_name": "Hasan"
+  },
+  "resource": 14,
+  "parent": null,
+  "content": "This is my comment",
+  "created_at": "2026-04-06T11:00:00Z",
+  "updated_at": "2026-04-06T11:00:00Z"
+}
+```
+
+---
+
+### Update Comment (Own Comments Only)
+
+**Endpoint:** `PATCH /api/interactions/comment/{id}/`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "content": "Updated comment text"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "id": 30,
+  "user": {
+    "id": 5,
+    "first_name": "Mehedi",
+    "last_name": "Hasan"
+  },
+  "resource": 14,
+  "parent": null,
+  "content": "Updated comment text",
+  "created_at": "2026-04-06T11:00:00Z",
+  "updated_at": "2026-04-06T11:15:00Z"
+}
+```
+
+**Error Responses:**
+- `403 Forbidden`: You're not the owner of this comment
+- `404 Not Found`: Comment doesn't exist
+
+---
+
+### Delete Comment (Own Comments Only)
+
+**Endpoint:** `DELETE /api/interactions/comment/{id}/`
+
+**Authentication:** Required
+
+**Success Response:** 204 No Content (empty body)
+
+**Error Responses:**
+- `403 Forbidden`: You're not the owner of this comment
+- `404 Not Found`: Comment doesn't exist
+
+---
+
+## 💬 COMMENT SYSTEM - FRONTEND IMPLEMENTATION
+
+### Display Comments with Threading (Showing Commenter Names)
+
+```javascript
+const CommentThread = ({ comments, resourceId, currentUserId }) => {
+  const [replyingTo, setReplyingTo] = useState(null);
+  
+  // Filter top-level comments (parent=null) and build tree
+  const topLevelComments = comments.filter(c => c.parent === null);
+  
+  const getReplies = (commentId) => {
+    return comments.filter(c => c.parent === commentId);
+  };
+  
+  // Get commenter's full name
+  const getCommenterName = (user) => {
+    return `${user.first_name} ${user.last_name}`;
+  };
+  
+  // Format date to readable format
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  return (
+    <div className="comments-section">
+      <h3>💬 Comments ({comments.length})</h3>
+      
+      {topLevelComments.map(comment => (
+        <div key={comment.id} className="comment-thread">
+          {/* Main Comment */}
+          <div className="comment">
+            <div className="comment-header">
+              {/* ⭐ DISPLAY COMMENTER NAME: first_name + last_name */}
+              <div className="commenter-info">
+                <strong className="commenter-name">
+                  {getCommenterName(comment.user)}
+                </strong>
+                <span className="user-id">@user{comment.user.id}</span>
+              </div>
+              <span className="timestamp">{formatDate(comment.created_at)}</span>
+            </div>
+            
+            <p className="comment-content">{comment.content}</p>
+            
+            {/* Edit/Delete buttons - only if current user owns the comment */}
+            <div className="comment-actions">
+              {currentUserId === comment.user.id && (
+                <>
+                  <button className="btn-edit" onClick={() => {/* handle edit */}}>
+                    Edit
+                  </button>
+                  <button className="btn-delete" onClick={() => {/* handle delete */}}>
+                    Delete
+                  </button>
+                </>
+              )}
+              <button 
+                className="btn-reply"
+                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+              >
+                ↳ Reply
+              </button>
+            </div>
+          </div>
+          
+          {/* Nested Replies */}
+          {getReplies(comment.id).length > 0 && (
+            <div className="replies-section">
+              <span className="replies-label">{getReplies(comment.id).length} replies</span>
+              <div className="replies">
+                {getReplies(comment.id).map(reply => (
+                  <div key={reply.id} className="comment reply">
+                    <div className="comment-header">
+                      {/* ⭐ DISPLAY REPLY COMMENTER NAME */}
+                      <div className="commenter-info">
+                        <strong className="commenter-name">
+                          {getCommenterName(reply.user)}
+                        </strong>
+                        <span className="user-id">@user{reply.user.id}</span>
+                      </div>
+                      <span className="timestamp">{formatDate(reply.created_at)}</span>
+                    </div>
+                    
+                    <p className="comment-content">{reply.content}</p>
+                    
+                    <div className="comment-actions">
+                      {currentUserId === reply.user.id && (
+                        <>
+                          <button className="btn-edit">Edit</button>
+                          <button className="btn-delete">Delete</button>
+                        </>
+                      )}
+                      <button 
+                        className="btn-reply"
+                        onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
+                      >
+                        ↳ Reply
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Reply Form */}
+          {replyingTo === comment.id && (
+            <CommentForm 
+              resourceId={resourceId} 
+              parentId={comment.id}
+              onSubmit={() => setReplyingTo(null)}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+### CSS Styling for Comments
+
+```css
+.comment-thread {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  background: #f9f9f9;
+}
+
+.comment {
+  padding: 12px 0;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.commenter-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.commenter-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.user-id {
+  font-size: 12px;
+  color: #999;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #666;
+}
+
+.comment-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  margin: 8px 0;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-reply, .btn-edit, .btn-delete {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-reply:hover {
+  background: #007bff;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #28a745;
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.reply {
+  margin-left: 24px;
+  background: #ffffff;
+  border-left: 3px solid #007bff;
+}
+
+.replies-section {
+  margin-top: 16px;
+  padding-left: 12px;
+  border-left: 2px solid #ddd;
+}
+
+.replies-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+```
+
+### Comment Form Component
+
+```javascript
+const CommentForm = ({ resourceId, parentId = null, onSubmit }) => {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/comment/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            resource: resourceId,
+            content: content,
+            parent: parentId
+          })
+        }
+      );
+
+      if (response.ok) {
+        const newComment = await response.json();
+        setContent('');
+        onSubmit(newComment); // Callback to refresh comments
+      } else {
+        console.error('Failed to post comment');
+      }
+    } catch (error) {
+      console.error('Comment error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="comment-form">
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Write your comment..."
+        required
+        rows="3"
+      />
+      <button type="submit" disabled={loading}>
+        {loading ? 'Posting...' : 'Post Comment'}
+      </button>
+    </form>
+  );
+};
+```
+
+---
+
+## 📊 COMPLETE INTERACTION FLOW - EXAMPLE
+
+```javascript
+// Hook to manage all interactions for a resource
+const useResourceInteractions = (resourceId) => {
+  const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState([]);
+  const [likesCount, setLikesCount] = useState(0);
+  const [currentUserLiked, setCurrentUserLiked] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // Fetch all interactions on mount
+  useEffect(() => {
+    fetchComments();
+    fetchLikes();
+    getCurrentUser();
+  }, [resourceId]);
+
+  const fetchComments = async () => {
+    try {
+      const response = await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/comment/`
+      );
+      const data = await response.json();
+      // Filter comments for this resource
+      const resourceComments = data.results.filter(c => c.resource === resourceId);
+      setComments(resourceComments);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+
+  const fetchLikes = async () => {
+    try {
+      const response = await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/like/`
+      );
+      const data = await response.json();
+      const resourceLikes = data.results.filter(l => l.resource === resourceId);
+      setLikes(resourceLikes);
+      setLikesCount(resourceLikes.length);
+      
+      // Check if current user liked
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        const userId = decodeToken(token).user_id;
+        const userLiked = resourceLikes.some(l => l.user.id === userId);
+        setCurrentUserLiked(userLiked);
+      }
+    } catch (error) {
+      console.error('Error fetching likes:', error);
+    }
+  };
+
+  const toggleLike = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('Please login to like resources');
+      return;
+    }
+
+    if (currentUserLiked) {
+      // Unlike
+      const userLike = likes.find(l => l.user.id === currentUserId);
+      if (userLike) {
+        await fetch(
+          `https://notenest-backend-hd5r.onrender.com/api/interactions/like/${userLike.id}/`,
+          {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          }
+        );
+      }
+    } else {
+      // Like
+      await fetch(
+        `https://notenest-backend-hd5r.onrender.com/api/interactions/like/`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ resource: resourceId })
+        }
+      );
+    }
+    fetchLikes(); // Refresh
+  };
+
+  const addComment = async (content, parentId = null) => {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(
+      `https://notenest-backend-hd5r.onrender.com/api/interactions/comment/`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          resource: resourceId,
+          content: content,
+          parent: parentId
+        })
+      }
+    );
+    if (response.ok) {
+      fetchComments(); // Refresh
+    }
+  };
+
+  return {
+    comments,
+    likesCount,
+    currentUserLiked,
+    toggleLike,
+    addComment,
+    refreshComments: fetchComments
+  };
+};
+```
+
+---
+
 ## 🚀 SAMPLE INTEGRATION CODE
 
 ```javascript
@@ -1068,7 +1759,20 @@ export const apiServices = {
     
     // Interactions
     getLikes: () => apiClient.get('/interactions/like/'),
+    createLike: (resourceId) => apiClient.post('/interactions/like/', { resource: resourceId }),
+    deleteLike: (likeId) => apiClient.delete(`/interactions/like/${likeId}/`),
+    
     getComments: () => apiClient.get('/interactions/comment/'),
+    createComment: (resourceId, content, parentId = null) => 
+      apiClient.post('/interactions/comment/', { 
+        resource: resourceId, 
+        content, 
+        parent: parentId 
+      }),
+    updateComment: (commentId, content) => 
+      apiClient.patch(`/interactions/comment/${commentId}/`, { content }),
+    deleteComment: (commentId) => apiClient.delete(`/interactions/comment/${commentId}/`),
+    
     getBookmarks: () => apiClient.get('/interactions/bookmark/'),
     
     // Moderation (Admin only)
