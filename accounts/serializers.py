@@ -53,11 +53,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     #this serializer for user profile details
     role = serializers.CharField(read_only=True)
     is_verified = serializers.BooleanField(read_only=True)
+    is_staff = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'role', 'is_verified', 'date_joined']
-        read_only_fields = ['id', 'email', 'date_joined']
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'role', 'is_staff', 'is_verified', 'date_joined']
+        read_only_fields = ['id', 'email', 'is_staff', 'date_joined']
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):

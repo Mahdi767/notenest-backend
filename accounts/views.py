@@ -167,13 +167,11 @@ class UserLoginApiView(generics.GenericAPIView):
                 )
 
             refresh = RefreshToken.for_user(user)
+            
+            user_serializer = UserProfileSerializer(user)
 
             return Response({
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email
-                },
+                "user": user_serializer.data,
                 "access": str(refresh.access_token),
                 "refresh": str(refresh)
             }, status=status.HTTP_200_OK)
