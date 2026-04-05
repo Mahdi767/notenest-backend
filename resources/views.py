@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from resources.models import Resource,ResourceView
-from resources.serializers import ResourceSerializer,ResourceCreateSerializer
+from resources.models import Resource,ResourceView,Tag
+from resources.serializers import ResourceSerializer,ResourceCreateSerializer,TagSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from rest_framework import viewsets, status
@@ -24,6 +24,18 @@ class ResourceDownloadRateThrottle(UserRateThrottle):
     """Rate throttle for resource downloads"""
     scope = 'resource_download'
     rate = '500/hour'
+
+
+class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for listing and retrieving tags.
+    Allows all users to view available tags.
+    """
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [AllowAny]
+    pagination_class = PageNumberPagination
+
 
 class ResourceViewSet(viewsets.ModelViewSet):
 
