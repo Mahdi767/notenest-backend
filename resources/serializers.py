@@ -90,16 +90,26 @@ class ResourceCreateSerializer(serializers.ModelSerializer):#for post/update met
         if self.context['request'].method == 'POST':
             if not data.get('file'):
                 raise serializers.ValidationError({"file": "File is required for new resources"})
+            # For POST, validate all required fields
+            if not data.get('title'):
+                raise serializers.ValidationError({"title": "Title is required"})
+            if not data.get('description'):
+                raise serializers.ValidationError({"description": "Description is required"})
+            if not data.get('resource_type'):
+                raise serializers.ValidationError({"resource_type": "Resource type is required"})
+            if not data.get('department'):
+                raise serializers.ValidationError({"department": "Department is required"})
         
-        # Validate required fields
-        if not data.get('title'):
-            raise serializers.ValidationError({"title": "Title is required"})
-        if not data.get('description'):
-            raise serializers.ValidationError({"description": "Description is required"})
-        if not data.get('resource_type'):
-            raise serializers.ValidationError({"resource_type": "Resource type is required"})
-        if not data.get('department'):
-            raise serializers.ValidationError({"department": "Department is required"})
+        # For PATCH/PUT, only validate fields that are being updated if they're present
+        elif self.context['request'].method in ['PATCH', 'PUT']:
+            # Only validate fields that are actually provided
+            if 'title' in data and not data['title']:
+                raise serializers.ValidationError({"title": "Title cannot be empty"})
+            if 'description' in data and not data['description']:
+                raise serializers.ValidationError({"description": "Description cannot be empty"})
+            if 'resource_type' in data and not data['resource_type']:
+                raise serializers.ValidationError({"resource_type": "Resource type cannot be empty"})
+        
         return data
     
     def create(self, validated_data):
