@@ -17,4 +17,6 @@ env/
 # Others
 .DS_Store
 
-FRONTEND_API_GUIDE.md
+# Ignore all markdown files except README.md
+*.md
+!README.md

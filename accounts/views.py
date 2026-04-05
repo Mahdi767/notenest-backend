@@ -110,8 +110,6 @@ class RegisterView(generics.CreateAPIView):
 
 
 # Activate Account
-
-
 class ActivateAccountView(APIView):
     permission_classes = [AllowAny]
 
@@ -122,20 +120,32 @@ class ActivateAccountView(APIView):
         except Exception:
             user = None
 
+        # ✅ Dynamically get frontend URL from request
+        # Handles both localhost and production domains automatically
+        scheme = request.scheme  # http or https
+        domain = request.get_host()  # localhost:3000 or your-domain.com
+        
+        # Determine frontend domain (remove /api suffix if present)
+        if domain.startswith('localhost') or domain.startswith('127.0.0.1'):
+            # Local development: localhost:8000 → localhost:3000
+            host_only = domain.split(':')[0]
+            frontend_domain = f'{host_only}:3000'
+        else:
+            # Production: same domain as backend
+            frontend_domain = domain
+
+        frontend_url = f'{scheme}://{frontend_domain}'
+
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.is_verified = True
             user.save()
 
-            return Response(
-                {"message": "Account activated successfully. You can now login."},
-                status=status.HTTP_200_OK
-            )
+            # ✅ Redirect to frontend login page
+            return redirect(f"{frontend_url}/login?verified=true&email={user.email}")
 
-        return Response(
-            {"error": "Activation link is invalid or expired."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        # ❌ Redirect with error message
+        return redirect(f"{frontend_url}/login?verified=false&error=Invalid+or+expired+link")
 
 
 # Login (JWT)
