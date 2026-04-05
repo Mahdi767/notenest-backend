@@ -120,10 +120,9 @@ class ActivateAccountView(APIView):
         except Exception:
             user = None
 
-        # ✅ Dynamically get frontend URL from request
-        # Handles both localhost and production domains automatically
+        # ✅ Dynamically detect frontend URL from request
         scheme = request.scheme  # http or https
-        domain = request.get_host()  # localhost:3000 or your-domain.com
+        domain = request.get_host()  # localhost:8000 or your-domain.com
         
         # Determine frontend domain (remove /api suffix if present)
         if domain.startswith('localhost') or domain.startswith('127.0.0.1'):
