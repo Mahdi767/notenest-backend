@@ -73,8 +73,8 @@ class ResourceSerializer(serializers.ModelSerializer): #for readonly
         fields = '__all__'
 
 
-class ResourceCreateSerializer(serializers.ModelSerializer):#for post method
-    file = serializers.FileField(required=True)
+class ResourceCreateSerializer(serializers.ModelSerializer):#for post/update method
+    file = serializers.FileField(required=False)  # Optional for updates (PATCH/PUT)
     tags = serializers.PrimaryKeyRelatedField(
         many=True, 
         queryset=Tag.objects.all(),
@@ -86,7 +86,12 @@ class ResourceCreateSerializer(serializers.ModelSerializer):#for post method
         fields = ['title', 'description', 'file', 'resource_type', 'tags', 'department', 'course', 'semester']
     
     def validate(self, data):
-        #Validate required fields
+        # For creation (POST), file is required
+        if self.context['request'].method == 'POST':
+            if not data.get('file'):
+                raise serializers.ValidationError({"file": "File is required for new resources"})
+        
+        # Validate required fields
         if not data.get('title'):
             raise serializers.ValidationError({"title": "Title is required"})
         if not data.get('description'):
@@ -102,6 +107,21 @@ class ResourceCreateSerializer(serializers.ModelSerializer):#for post method
         resource = Resource.objects.create(**validated_data)
         resource.tags.set(tags)
         return resource
+    
+    def update(self, instance, validated_data):
+        tags = validated_data.pop('tags', None)
+        
+        # Update all fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        
+        # Update tags if provided
+        if tags is not None:
+            instance.tags.set(tags)
+        
+        return instance
 
 
 
