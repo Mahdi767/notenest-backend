@@ -26,7 +26,7 @@ class ResourceDownloadRateThrottle(UserRateThrottle):
 class ResourceViewSet(viewsets.ModelViewSet):
 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter] 
-    filterset_fields = ['department', 'course', 'semester', 'resource_type']  
+    filterset_fields = ['department', 'course', 'semester', 'semester__year', 'resource_type']  
     search_fields = ['title']  
     ordering_fields = ['created_at', 'view_count', 'download_count']  
     pagination_class = PageNumberPagination
