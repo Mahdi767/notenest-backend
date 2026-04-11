@@ -39,9 +39,12 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = [
-    'notenest-backend-hd5r.onrender.com',
-    'localhost',
-    '127.0.0.1',
+    "notenest-backend-hd5r.onrender.com",
+    "api.notenestmu.me",
+    "notenestmu.me",
+    "www.notenestmu.me",
+    "localhost",
+    "127.0.0.1",
 ]
 
 # Default auto field for primary keys
@@ -72,11 +75,17 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://notenestmu.me",
+    "https://www.notenestmu.me",
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # React local dev (Vite)
-    "http://localhost:3000",  # React local dev (CRA)
-    "https://notenest.vercel.app",  # React production
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://notenestmu.me",
+    "https://www.notenestmu.me",
 ]
 
 CLOUDINARY_STORAGE = {
