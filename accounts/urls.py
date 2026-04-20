@@ -6,6 +6,7 @@ from .views import (
     UserLoginApiView,
     LogoutView,
     CurrentUserView,
+    UserListView,
     UserDetailView,
     ChangePasswordView,
     PasswordResetRequestView,
@@ -22,6 +23,7 @@ urlpatterns = [
     
     # Profile endpoints
     path("me/", CurrentUserView.as_view(), name="current-user"),
+    path("users/", UserListView.as_view(), name="user-list"),
     path("users/<str:id>/", UserDetailView.as_view(), name="user-detail"),
     
     # Password management

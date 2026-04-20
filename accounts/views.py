@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from . serializers import (
     RegisterSerializer,
     UserLoginSerializer,
@@ -25,8 +25,24 @@ from .models import User
 import threading
 import logging
 import requests
+from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
+
+
+def build_frontend_url(path="", query_params=None):
+    base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+    normalized_path = path or ""
+
+    if normalized_path and not normalized_path.startswith("/"):
+        normalized_path = f"/{normalized_path}"
+
+    url = f"{base_url}{normalized_path}"
+
+    if query_params:
+        return f"{url}?{urlencode(query_params)}"
+
+    return url
 
 
 
@@ -81,14 +97,20 @@ class RegisterView(generics.CreateAPIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
 
             try:
-                scheme = request.scheme
-                domain = request.get_host()
-                confirm_link = f"{scheme}://{domain}/api/accounts/activate/{uid}/{token}/"
+                # Use frontend URL for email link, not backend API
+                confirm_link = build_frontend_url(
+                    "verify-email",
+                    query_params={"uid": uid, "token": token}
+                )
 
                 email_subject = "Confirm Your Email for NoteNest"
                 email_body = render_to_string(
                     "confirm_email.html",
-                    {"confirm_link": confirm_link}
+                    {
+                        "confirm_link": confirm_link,
+                        "frontend_home_url": settings.FRONTEND_BASE_URL,
+                        "frontend_login_url": build_frontend_url(settings.FRONTEND_LOGIN_PATH),
+                    }
                 )
 
                 email_thread = threading.Thread(
@@ -114,37 +136,68 @@ class ActivateAccountView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, uid64, token):
+        login_url = build_frontend_url(settings.FRONTEND_LOGIN_PATH)
+        register_url = build_frontend_url(settings.FRONTEND_REGISTER_PATH)
+
         try:
             uid = force_str(urlsafe_base64_decode(uid64))
             user = User.objects.get(pk=uid)
         except Exception:
             user = None
 
-        # ✅ Dynamically detect frontend URL from request
-        scheme = request.scheme  # http or https
-        domain = request.get_host()  # localhost:8000 or your-domain.com
-        
-        # Determine frontend domain (remove /api suffix if present)
-        if domain.startswith('localhost') or domain.startswith('127.0.0.1'):
-            # Local development: localhost:8000 → localhost:3000
-            host_only = domain.split(':')[0]
-            frontend_domain = f'{host_only}:3000'
-        else:
-            # Production: same domain as backend
-            frontend_domain = domain
-
-        frontend_url = f'{scheme}://{frontend_domain}'
-
         if user and default_token_generator.check_token(user, token):
             user.is_active = True
             user.is_verified = True
             user.save()
 
-            # ✅ Redirect to frontend login page
-            return redirect(f"{frontend_url}/login?verified=true&email={user.email}")
+            login_with_state = build_frontend_url(
+                settings.FRONTEND_LOGIN_PATH,
+                {
+                    "verified": "true",
+                    "email": user.email,
+                },
+            )
 
-        # ❌ Redirect with error message
-        return redirect(f"{frontend_url}/login?verified=false&error=Invalid+or+expired+link")
+            return render(
+                request,
+                "activation_redirect.html",
+                {
+                    "is_success": True,
+                    "title": "Email verified successfully",
+                    "message": "Your account is now active. You can sign in to NoteNest.",
+                    "redirect_url": login_with_state,
+                    "primary_button_text": "Continue to Login",
+                    "primary_button_url": login_with_state,
+                    "secondary_button_text": "Go to NoteNest",
+                    "secondary_button_url": settings.FRONTEND_BASE_URL,
+                    "countdown_seconds": 5,
+                },
+            )
+
+        login_with_error = build_frontend_url(
+            settings.FRONTEND_LOGIN_PATH,
+            {
+                "verified": "false",
+                "error": "Invalid or expired link",
+            },
+        )
+
+        return render(
+            request,
+            "activation_redirect.html",
+            {
+                "is_success": False,
+                "title": "Verification link is invalid",
+                "message": "This link is invalid or has expired. Please request a new verification email.",
+                "redirect_url": login_with_error,
+                "primary_button_text": "Go to Login",
+                "primary_button_url": login_url,
+                "secondary_button_text": "Create New Account",
+                "secondary_button_url": register_url,
+                "countdown_seconds": 7,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 # Login (JWT)
@@ -228,6 +281,13 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
         return UserProfileSerializer
 
 
+# Get all users
+class UserListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
+    queryset = User.objects.all()
+
+
 # Get User by ID
 class UserDetailView(generics.RetrieveAPIView):
     
@@ -278,10 +338,11 @@ class PasswordResetRequestView(APIView):
                 token = default_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 
-                # Create password reset link
-                scheme = request.scheme
-                domain = request.get_host()
-                reset_link = f"{scheme}://{domain}/api/accounts/reset-password-confirm/?uid={uid}&token={token}"
+                # Create password reset link using frontend URL, not backend API
+                reset_link = build_frontend_url(
+                    "reset-password",
+                    query_params={"uid": uid, "token": token}
+                )
                 
                 # Send email
                 email_subject = "Reset Your NoteNest Password"
@@ -384,16 +445,21 @@ class ResendVerificationEmailView(APIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
-            # Create activation link
-            scheme = request.scheme
-            domain = request.get_host()
-            confirm_link = f"{scheme}://{domain}/api/accounts/activate/{uid}/{token}/"
+            # Create activation link using frontend URL, not backend API
+            confirm_link = build_frontend_url(
+                "verify-email",
+                query_params={"uid": uid, "token": token}
+            )
             
             # Send verification email
             email_subject = "Confirm Your Email for NoteNest"
             email_body = render_to_string(
                 "confirm_email.html",
-                {"confirm_link": confirm_link}
+                {
+                    "confirm_link": confirm_link,
+                    "frontend_home_url": settings.FRONTEND_BASE_URL,
+                    "frontend_login_url": build_frontend_url(settings.FRONTEND_LOGIN_PATH),
+                }
             )
             
             email_thread = threading.Thread(
