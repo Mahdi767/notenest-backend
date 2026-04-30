@@ -164,6 +164,11 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='NoteNest <noreply@notene
 # Brevo API Configuration (for sending emails via API instead of SMTP)
 BREVO_API_KEY = env('BREVO_API_KEY')
 
+# Frontend Configuration
+FRONTEND_BASE_URL = env('FRONTEND_BASE_URL', default='https://notenestmu.me')
+FRONTEND_LOGIN_PATH = env('FRONTEND_LOGIN_PATH', default='/login')
+FRONTEND_REGISTER_PATH = env('FRONTEND_REGISTER_PATH', default='/register')
+
 # Cloudinary Configuration
 import cloudinary
 

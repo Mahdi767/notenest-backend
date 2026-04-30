@@ -22,6 +22,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 
+from .email_service import send_verification_email, send_password_reset_email
 import threading
 import logging
 import requests
@@ -46,39 +47,7 @@ def build_frontend_url(path="", query_params=None):
 
 
 
-# Email Sender (Brevo API)
-def send_email_via_brevo(to_email, subject, html_body):
-    try:
-        from_email = settings.DEFAULT_FROM_EMAIL
-        
-        if "<" in from_email:
-            from_email = from_email.split("<")[1].rstrip(">")
 
-        url = "https://api.brevo.com/v3/smtp/email"
-        headers = {
-            "accept": "application/json",
-            "api-key": settings.BREVO_API_KEY,
-            "content-type": "application/json"
-        }
-        payload = {
-            "to": [{"email": to_email}],
-            "sender": {"name": "NoteNest", "email": from_email},
-            "subject": subject,
-            "htmlContent": html_body
-        }
-
-        response = requests.post(url, json=payload, headers=headers)
-        
-        if response.status_code == 201:
-            logger.info(f"Email sent successfully to {to_email}")
-            return True
-        else:
-            logger.error(f"Brevo error: {response.status_code} - {response.text}")
-            return False
-
-    except Exception as e:
-        logger.error(f"Email sending failed: {str(e)}")
-        return False
 
 
 
@@ -103,19 +72,9 @@ class RegisterView(generics.CreateAPIView):
                     query_params={"uid": uid, "token": token}
                 )
 
-                email_subject = "Confirm Your Email for NoteNest"
-                email_body = render_to_string(
-                    "confirm_email.html",
-                    {
-                        "confirm_link": confirm_link,
-                        "frontend_home_url": settings.FRONTEND_BASE_URL,
-                        "frontend_login_url": build_frontend_url(settings.FRONTEND_LOGIN_PATH),
-                    }
-                )
-
                 email_thread = threading.Thread(
-                    target=send_email_via_brevo,
-                    args=(user.email, email_subject, email_body)
+                    target=send_verification_email,
+                    args=(user.email, confirm_link)
                 )
                 email_thread.daemon = True
                 email_thread.start()
@@ -344,16 +303,9 @@ class PasswordResetRequestView(APIView):
                     query_params={"uid": uid, "token": token}
                 )
                 
-                # Send email
-                email_subject = "Reset Your NoteNest Password"
-                email_body = render_to_string(
-                    "password_reset_email.html",
-                    {"reset_link": reset_link, "user": user}
-                )
-                
                 email_thread = threading.Thread(
-                    target=send_email_via_brevo,
-                    args=(email, email_subject, email_body)
+                    target=send_password_reset_email,
+                    args=(email, reset_link)
                 )
                 email_thread.daemon = True
                 email_thread.start()
@@ -451,20 +403,9 @@ class ResendVerificationEmailView(APIView):
                 query_params={"uid": uid, "token": token}
             )
             
-            # Send verification email
-            email_subject = "Confirm Your Email for NoteNest"
-            email_body = render_to_string(
-                "confirm_email.html",
-                {
-                    "confirm_link": confirm_link,
-                    "frontend_home_url": settings.FRONTEND_BASE_URL,
-                    "frontend_login_url": build_frontend_url(settings.FRONTEND_LOGIN_PATH),
-                }
-            )
-            
             email_thread = threading.Thread(
-                target=send_email_via_brevo,
-                args=(user.email, email_subject, email_body)
+                target=send_verification_email,
+                args=(user.email, confirm_link)
             )
             email_thread.daemon = True
             email_thread.start()
