@@ -5,9 +5,10 @@ the Brevo (Sendinblue) transactional email service.
 """
 
 import logging
+import requests
+import json
 from django.conf import settings
 from django.template.loader import render_to_string
-from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
 
 logger = logging.getLogger(__name__)
@@ -15,102 +16,109 @@ logger = logging.getLogger(__name__)
 
 class BrevoEmailService:
     """
-    Service class for handling email sending via Django's mail backend (SMTP).
-    This uses the Brevo SMTP relay which is more reliable and bypasses 
-    IP authorization restrictions that often block API calls.
+    Service class for handling email sending via Brevo API (v3).
+    This uses HTTPS which bypasses port blocking on hosting providers like Render.
     """
 
     def __init__(self):
-        """Initialize service."""
-        pass
+        self.api_key = settings.BREVO_API_KEY
+        self.api_url = "https://api.brevo.com/v3/smtp/email"
 
     def send_verification_email(self, to_email, verify_link):
         """
-        Send verification email using Django's SMTP backend.
+        Send verification email using Brevo API.
         """
-        logger.info(f"Preparing to send verification email to {to_email}...")
+        logger.info(f"Preparing to send verification email via API to {to_email}...")
+        
         try:
-            # Diagnostic info (safe)
-            logger.info(f"Using SMTP Host: {settings.EMAIL_HOST}")
-            logger.info(f"Using SMTP Port: {settings.EMAIL_PORT}")
-            logger.info(f"Using SMTP User: {settings.EMAIL_HOST_USER}")
-            
             subject = "Verify Your NoteNest Account"
             html_content = render_to_string(
                 "verification_email.html",
                 {"verify_link": verify_link},
             )
-            text_content = strip_tags(html_content)
             
-            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "NoteNest <noreply@notenestmu.me>")
-            logger.info(f"Sending from: {from_email}")
-            
-            email = EmailMultiAlternatives(
-                subject,
-                text_content,
-                from_email,
-                [to_email]
-            )
-            email.attach_alternative(html_content, "text/html")
-            
-            logger.info("Attempting SMTP connection and send...")
-            email.send(fail_silently=False)
-            
-            logger.info(f"SUCCESS: Verification email sent to {to_email}")
-            return {
-                "status": "success",
-                "email": to_email,
+            # Extract sender from DEFAULT_FROM_EMAIL
+            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@notenestmu.me")
+            sender_name = "NoteNest"
+            sender_email = from_email
+            if "<" in from_email:
+                sender_name = from_email.split("<")[0].strip()
+                sender_email = from_email.split("<")[1].rstrip(">")
+
+            payload = {
+                "sender": {"name": sender_name, "email": sender_email},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_content
             }
 
-        except Exception as error:
-            logger.error(f"CRITICAL: Failed to send email to {to_email}")
-            logger.error(f"Error Type: {type(error).__name__}")
-            logger.error(f"Error Message: {str(error)}")
-            return {
-                "status": "error",
-                "message": str(error),
-                "email": to_email,
+            headers = {
+                "accept": "application/json",
+                "api-key": self.api_key,
+                "content-type": "application/json"
             }
+
+            logger.info("Sending request to Brevo API...")
+            response = requests.post(self.api_url, headers=headers, data=json.dumps(payload))
+            
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"SUCCESS: Email sent via Brevo API to {to_email}")
+                return {"status": "success", "email": to_email}
+            else:
+                logger.error(f"API Error: Status {response.status_code} - {response.text}")
+                return {"status": "error", "message": response.text}
+
+        except Exception as error:
+            logger.exception(f"CRITICAL: Unexpected error in Brevo API service: {str(error)}")
+            return {"status": "error", "message": str(error)}
 
     def send_password_reset_email(self, to_email, reset_link):
         """
-        Send password reset email using Django's SMTP backend.
+        Send password reset email using Brevo API.
         """
+        logger.info(f"Preparing to send password reset email via API to {to_email}...")
+        
         try:
             subject = "Reset Your NoteNest Password"
             html_content = render_to_string(
                 "password_reset_email.html",
                 {"reset_link": reset_link},
             )
-            text_content = strip_tags(html_content)
             
-            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "NoteNest <noreply@notenestmu.me>")
-            
-            email = EmailMultiAlternatives(
-                subject,
-                text_content,
-                from_email,
-                [to_email]
-            )
-            email.attach_alternative(html_content, "text/html")
-            
-            email.send(fail_silently=False)
-            
-            logger.info(f"Password reset email sent successfully to {to_email} via SMTP")
-            return {
-                "status": "success",
-                "email": to_email,
+            # Extract sender from DEFAULT_FROM_EMAIL
+            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@notenestmu.me")
+            sender_name = "NoteNest"
+            sender_email = from_email
+            if "<" in from_email:
+                sender_name = from_email.split("<")[0].strip()
+                sender_email = from_email.split("<")[1].rstrip(">")
+
+            payload = {
+                "sender": {"name": sender_name, "email": sender_email},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_content
             }
 
-        except Exception as error:
-            logger.exception(
-                f"Error sending password reset email to {to_email} via SMTP: {str(error)}"
-            )
-            return {
-                "status": "error",
-                "message": str(error),
-                "email": to_email,
+            headers = {
+                "accept": "application/json",
+                "api-key": self.api_key,
+                "content-type": "application/json"
             }
+
+            logger.info("Sending request to Brevo API...")
+            response = requests.post(self.api_url, headers=headers, data=json.dumps(payload))
+            
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"SUCCESS: Password reset email sent via Brevo API to {to_email}")
+                return {"status": "success", "email": to_email}
+            else:
+                logger.error(f"API Error: Status {response.status_code} - {response.text}")
+                return {"status": "error", "message": response.text}
+
+        except Exception as error:
+            logger.exception(f"CRITICAL: Unexpected error in Brevo API service: {str(error)}")
+            return {"status": "error", "message": str(error)}
 
     def send_password_reset_email(self, to_email, reset_link):
         """
