@@ -28,7 +28,13 @@ class BrevoEmailService:
         """
         Send verification email using Django's SMTP backend.
         """
+        logger.info(f"Preparing to send verification email to {to_email}...")
         try:
+            # Diagnostic info (safe)
+            logger.info(f"Using SMTP Host: {settings.EMAIL_HOST}")
+            logger.info(f"Using SMTP Port: {settings.EMAIL_PORT}")
+            logger.info(f"Using SMTP User: {settings.EMAIL_HOST_USER}")
+            
             subject = "Verify Your NoteNest Account"
             html_content = render_to_string(
                 "verification_email.html",
@@ -37,6 +43,7 @@ class BrevoEmailService:
             text_content = strip_tags(html_content)
             
             from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "NoteNest <noreply@notenestmu.me>")
+            logger.info(f"Sending from: {from_email}")
             
             email = EmailMultiAlternatives(
                 subject,
@@ -46,18 +53,19 @@ class BrevoEmailService:
             )
             email.attach_alternative(html_content, "text/html")
             
+            logger.info("Attempting SMTP connection and send...")
             email.send(fail_silently=False)
             
-            logger.info(f"Verification email sent successfully to {to_email} via SMTP")
+            logger.info(f"SUCCESS: Verification email sent to {to_email}")
             return {
                 "status": "success",
                 "email": to_email,
             }
 
         except Exception as error:
-            logger.exception(
-                f"Error sending verification email to {to_email} via SMTP: {str(error)}"
-            )
+            logger.error(f"CRITICAL: Failed to send email to {to_email}")
+            logger.error(f"Error Type: {type(error).__name__}")
+            logger.error(f"Error Message: {str(error)}")
             return {
                 "status": "error",
                 "message": str(error),
