@@ -39,16 +39,10 @@ def build_frontend_url(path="", query_params=None):
     if normalized_path and not normalized_path.startswith("/"):
         normalized_path = f"/{normalized_path}"
 
-    # For GitHub Pages / SPA support, we use a hash-based route if not already present
-    if normalized_path != "/" and normalized_path and not normalized_path.startswith("/#"):
-        normalized_path = f"/#{normalized_path}"
-
     url = f"{base_url}{normalized_path}"
 
     if query_params:
-        # Check if the URL already has query params (from the hash)
-        separator = "&" if "?" in url else "?"
-        return f"{url}{separator}{urlencode(query_params)}"
+        return f"{url}?{urlencode(query_params)}"
 
     return url
 
