@@ -68,10 +68,9 @@ class RegisterView(generics.CreateAPIView):
 
             try:
                 # Use frontend URL for email link, not backend API
-                # Build activation link pointing to the backend
-                confirm_link = request.build_absolute_uri(
-                    reverse('activate', kwargs={'uid64': uid, 'token': token})
-                )
+                # Build activation link pointing to the custom backend domain
+                activate_path = reverse('activate', kwargs={'uid64': uid, 'token': token})
+                confirm_link = f"{settings.BACKEND_BASE_URL.rstrip('/')}{activate_path}"
 
                 email_thread = threading.Thread(
                     target=send_verification_email,

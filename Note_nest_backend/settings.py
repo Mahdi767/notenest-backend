@@ -78,6 +78,7 @@ INSTALLED_APPS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://notenestmu.me",
     "https://www.notenestmu.me",
+    "https://api.notenestmu.me",
 ]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -168,6 +169,7 @@ BREVO_API_KEY = env('BREVO_API_KEY')
 FRONTEND_BASE_URL = env('FRONTEND_BASE_URL', default='https://notenestmu.me')
 FRONTEND_LOGIN_PATH = env('FRONTEND_LOGIN_PATH', default='/login')
 FRONTEND_REGISTER_PATH = env('FRONTEND_REGISTER_PATH', default='/register')
+BACKEND_BASE_URL = env('BACKEND_BASE_URL', default='https://api.notenestmu.me')
 
 # Cloudinary Configuration
 import cloudinary
