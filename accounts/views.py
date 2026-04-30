@@ -1,4 +1,5 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse
 from . serializers import (
     RegisterSerializer,
     UserLoginSerializer,
@@ -67,9 +68,9 @@ class RegisterView(generics.CreateAPIView):
 
             try:
                 # Use frontend URL for email link, not backend API
-                confirm_link = build_frontend_url(
-                    "verify-email",
-                    query_params={"uid": uid, "token": token}
+                # Build activation link pointing to the backend
+                confirm_link = request.build_absolute_uri(
+                    reverse('activate', kwargs={'uid64': uid, 'token': token})
                 )
 
                 email_thread = threading.Thread(
@@ -117,21 +118,7 @@ class ActivateAccountView(APIView):
                 },
             )
 
-            return render(
-                request,
-                "activation_redirect.html",
-                {
-                    "is_success": True,
-                    "title": "Email verified successfully",
-                    "message": "Your account is now active. You can sign in to NoteNest.",
-                    "redirect_url": login_with_state,
-                    "primary_button_text": "Continue to Login",
-                    "primary_button_url": login_with_state,
-                    "secondary_button_text": "Go to NoteNest",
-                    "secondary_button_url": settings.FRONTEND_BASE_URL,
-                    "countdown_seconds": 5,
-                },
-            )
+            return redirect(login_with_state)
 
         login_with_error = build_frontend_url(
             settings.FRONTEND_LOGIN_PATH,
@@ -141,22 +128,7 @@ class ActivateAccountView(APIView):
             },
         )
 
-        return render(
-            request,
-            "activation_redirect.html",
-            {
-                "is_success": False,
-                "title": "Verification link is invalid",
-                "message": "This link is invalid or has expired. Please request a new verification email.",
-                "redirect_url": login_with_error,
-                "primary_button_text": "Go to Login",
-                "primary_button_url": login_url,
-                "secondary_button_text": "Create New Account",
-                "secondary_button_url": register_url,
-                "countdown_seconds": 7,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return redirect(login_with_error)
 
 
 # Login (JWT)
@@ -398,9 +370,9 @@ class ResendVerificationEmailView(APIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
             # Create activation link using frontend URL, not backend API
-            confirm_link = build_frontend_url(
-                "verify-email",
-                query_params={"uid": uid, "token": token}
+            # Create activation link pointing to the backend
+            confirm_link = request.build_absolute_uri(
+                reverse('activate', kwargs={'uid64': uid, 'token': token})
             )
             
             email_thread = threading.Thread(
