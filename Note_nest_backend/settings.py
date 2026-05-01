@@ -161,6 +161,8 @@ EMAIL_PORT = 465
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='NoteNest <noreply@notenestmu.me>')
+BREVO_SENDER_NAME = env('BREVO_SENDER_NAME', default='NoteNest')
+BREVO_SENDER_EMAIL = env('BREVO_SENDER_EMAIL', default='')
 
 # Brevo API Configuration (for sending emails via API instead of SMTP)
 BREVO_API_KEY = env('BREVO_API_KEY')
@@ -169,6 +171,7 @@ BREVO_API_KEY = env('BREVO_API_KEY')
 FRONTEND_BASE_URL = env('FRONTEND_BASE_URL', default='https://notenestmu.me')
 FRONTEND_LOGIN_PATH = env('FRONTEND_LOGIN_PATH', default='/login')
 FRONTEND_REGISTER_PATH = env('FRONTEND_REGISTER_PATH', default='/register')
+FRONTEND_PASSWORD_RESET_PATH = env('FRONTEND_PASSWORD_RESET_PATH', default='/reset-password')
 BACKEND_BASE_URL = env('BACKEND_BASE_URL', default='https://api.notenestmu.me')
 
 # Cloudinary Configuration

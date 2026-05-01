@@ -32,6 +32,23 @@ from urllib.parse import urlencode
 logger = logging.getLogger(__name__)
 
 
+def send_email_in_thread(send_func, *args):
+    """
+    Send email in background thread with proper error handling and logging.
+    """
+    try:
+        logger.info(f"Starting email thread for {send_func.__name__} with args: {args[0] if args else 'N/A'}")
+        result = send_func(*args)
+        if result.get("status") == "success":
+            logger.info(f"Email sent successfully: {result}")
+        else:
+            logger.error(f"Email sending failed: {result}")
+        return result
+    except Exception as e:
+        logger.exception(f"CRITICAL ERROR in email thread: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 def build_frontend_url(path="", query_params=None):
     base_url = settings.FRONTEND_BASE_URL.rstrip("/")
     normalized_path = path or ""
@@ -71,19 +88,36 @@ class RegisterView(generics.CreateAPIView):
                 # Build activation link pointing to the custom backend domain
                 activate_path = reverse('activate', kwargs={'uid64': uid, 'token': token})
                 confirm_link = f"{settings.BACKEND_BASE_URL.rstrip('/')}{activate_path}"
+                logger.info(f"Verification link: {confirm_link}")
 
-                email_thread = threading.Thread(
-                    target=send_verification_email,
-                    args=(user.email, confirm_link)
-                )
-                email_thread.daemon = True
-                email_thread.start()
+                # Send email synchronously (wait for result before responding)
+                logger.info(f"Attempting to send verification email to {user.email}")
+                email_result = send_verification_email(user.email, confirm_link)
+                
+                if email_result.get("status") != "success":
+                    logger.error(f"Email sending failed during registration: {email_result}")
+                    return Response(
+                        {
+                            "message": "User registered, but verification email could not be sent.",
+                            "error_details": email_result.get("message", "Unknown error")
+                        },
+                        status=status.HTTP_502_BAD_GATEWAY
+                    )
+                
+                logger.info(f"Verification email sent successfully to {user.email}")
 
             except Exception as e:
-                logger.error(str(e))
+                logger.exception(f"CRITICAL: Error in registration email process: {str(e)}")
+                return Response(
+                    {
+                        "message": "User registered, but verification email could not be sent.",
+                        "error_details": str(e)
+                    },
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
 
             return Response(
-                {"message": "User registered successfully. Please verify your email."},
+                {"message": "User registered successfully. Verification email sent!"},
                 status=status.HTTP_201_CREATED
             )
 
@@ -95,9 +129,6 @@ class ActivateAccountView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, uid64, token):
-        login_url = build_frontend_url(settings.FRONTEND_LOGIN_PATH)
-        register_url = build_frontend_url(settings.FRONTEND_REGISTER_PATH)
-
         try:
             uid = force_str(urlsafe_base64_decode(uid64))
             user = User.objects.get(pk=uid)
@@ -270,7 +301,7 @@ class PasswordResetRequestView(APIView):
                 
                 # Create password reset link using frontend URL, not backend API
                 reset_link = build_frontend_url(
-                    "reset-password",
+                    settings.FRONTEND_PASSWORD_RESET_PATH,
                     query_params={"uid": uid, "token": token}
                 )
                 
@@ -368,11 +399,9 @@ class ResendVerificationEmailView(APIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
-            # Create activation link using frontend URL, not backend API
-            # Create activation link pointing to the backend
-            confirm_link = request.build_absolute_uri(
-                reverse('activate', kwargs={'uid64': uid, 'token': token})
-            )
+            # Always point to configured backend domain, then backend redirects to frontend login.
+            activate_path = reverse('activate', kwargs={'uid64': uid, 'token': token})
+            confirm_link = f"{settings.BACKEND_BASE_URL.rstrip('/')}{activate_path}"
             
             email_thread = threading.Thread(
                 target=send_verification_email,
