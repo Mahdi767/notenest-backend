@@ -119,7 +119,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
             )
             if created:
                 instance.view_count += 1
-                instance.save()
+                instance.save(update_fields=['view_count'])
         else:
             # Track anonymous views by IP
             ip = self.get_client_ip(request)
@@ -130,7 +130,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
             )
             if created:
                 instance.view_count += 1
-                instance.save()
+                instance.save(update_fields=['view_count'])
         return super().retrieve(request, *args, **kwargs)
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
