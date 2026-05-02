@@ -39,14 +39,13 @@ def notify_comment_reply(sender, instance, created, **kwargs):
         # Get ContentType for Comment
         comment_ct = ContentType.objects.get_for_model(Comment)
         
-        # Use get_or_create to prevent duplicate notifications
         notification, is_new = Notification.objects.get_or_create(
             user=instance.parent.user,
             content_type=comment_ct,
             object_id=instance.id,
             defaults={
                 'title': "New reply to your comment",
-                'message': f"{instance.user} replied to your comment on '{instance.resource.title}'"
+                'message': f"{instance.user.first_name} {instance.user.last_name} replied to your comment on '{instance.resource.title}'"
             }
         )
 
