@@ -140,13 +140,9 @@ class ActivateAccountView(APIView):
             user.is_verified = True
             user.save()
 
-            login_with_state = build_frontend_url(
-                settings.FRONTEND_LOGIN_PATH,
-                {
-                    "verified": "true",
-                    "email": user.email,
-                },
-            )
+            login_hash_path = settings.FRONTEND_LOGIN_PATH.lstrip("/")
+            login_query = urlencode({"verified": "true", "email": user.email})
+            login_with_state = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/#/{login_hash_path}?{login_query}"
 
             return redirect(login_with_state)
 
